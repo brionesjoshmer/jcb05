@@ -1,0 +1,2504 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "apiProfile": "2019-03-01-hybrid",
+    "parameters": {
+      "location": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().location]"
+      },
+      "iot_hub_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-sample-iot-hub')]",
+        "type": "String"
+      },
+      "event-hub-namespace-name": {
+        "defaultValue": "[concat(resourceGroup().name, '-eventhubs-monitor')]",
+        "type": "String"
+      },
+      "event-hub-name": {
+        "defaultValue": "event-hub",
+        "type": "String"
+      },
+      "streaming_jobs_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-sample-stream-analytics')]",
+        "type": "String"
+      },
+      "sql_server_name": {
+        "type": "string",
+        "defaultValue": "[concat(resourceGroup().name, 'samplesqlserver')]",
+        "metadata": {
+          "description": "The name of the SQL logical server."
+        }
+      },
+      "administratorLogin": {
+        "type": "string",
+        "minLength": 128,
+        "maxLength": 128,
+        "metadata": {
+          "description": "The administrator username of the SQL logical server.(The length must be 128.)"
+        }
+      },
+      "administratorLoginPassword": {
+        "type": "securestring",
+        "minLength": 128,
+        "maxLength": 128,
+        "metadata": {
+          "description": "The administrator password of the SQL logical server.(The length must be 128.)"
+        }
+      },
+      "sqlDBName": {
+        "type": "string",
+        "defaultValue": "SensorDatabase",
+        "metadata": {
+          "description": "The name of the SQL Database."
+        }
+      },
+      "TableName": {
+        "type": "string",
+        "defaultValue": "dbo.temphumid",
+        "metadata": {
+          "description": "The name of the table on SQL Database."
+        }
+      },
+      "storage_accounts_name": {
+        "defaultValue": "[concat(resourceGroup().name, 'storage')]",
+        "type": "String",
+        "metadata": {
+          "description": "The name of the Blob Storage Account."
+        }
+      },
+      "container_name": {
+        "defaultValue": "[concat(resourceGroup().name, 'container')]",
+        "type": "String",
+        "metadata": {
+          "description": "The name of the container of Blob Storage."
+        }
+      },
+      "serverfarms_plan_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-func-plan')]",
+        "type": "String"
+      },
+      "VNet_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-VNet')]",
+        "type": "String"
+      },
+      "functions_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-func')]",
+        "type": "String"
+      },
+      "IP_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-IP')]",
+        "type": "String"
+      },
+      "NAT_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-NAT')]",
+        "type": "String"
+      },
+      "storage_in_vnet": {
+        "defaultValue": "[concat(resourceGroup().name, 'invnet')]",
+        "type": "String"
+      },
+      "application_insights_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-func')]",
+        "type": "String"
+      },
+      "key_vault_in_vnet_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-keyvault-invnet')]",
+        "type": "String"
+      },
+      "role_relation_id_for_SAS_to_blob_storage_container": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for SAS to blob storage container(No need to change)"
+        }
+      },
+      "role_relation_id_for_functions_to_blob_storage_container": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for functions blob storage container(No need to change)"
+        }
+      },
+      "role_relation_id_for_SAS_to_event-hub": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for stream analytics to event hub(No need to change)"
+        }
+      },
+      "role_relation_id_for_event-hub_to_functions": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for event hub to functions(No need to change)"
+        }
+      },
+      "role_relation_id_for_functions_to_key_vault": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for event hub to functions(No need to change)"
+        }
+      },
+      "role_relation_id_for_sql_server_to_storage_account": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The role relation id for SQL Server to Storage Account(No need to change)"
+        }
+      },
+      "send_email_action_group_name": {
+        "defaultValue": "[concat(resourceGroup().name, '-send-email-action')]",
+        "type": "String",
+        "metadata": {
+          "description": "The name of the action group for sending email"
+        }
+      },
+      "send_email_action_group_name_short": {
+        "defaultValue": "[take(parameters('send_email_action_group_name'), 12)]",
+        "type": "String",
+        "maxLength": 12,
+        "metadata": {
+          "description": "The short name of the action group for sending email. Max length is 12 letters."
+        }
+      },
+      "alert_email": {
+        "defaultValue": "[concat(resourceGroup().name, '@example.com')]",
+        "type": "String",
+        "metadata": {
+          "description": "The email address for alert"
+        }
+      },
+      "alert_prefix": {
+        "defaultValue": "[resourceGroup().name]",
+        "type": "String",
+        "metadata": {
+          "description": "Prefix of alert resources"
+        }
+      }
+    },
+    "variables": {
+      "consumer_group": {
+        "stream_analytics": {
+          "name": "stream-analytics",
+          "name_for_def": "[concat(parameters('iot_hub_name'), '/events/stream-analytics')]"
+        }
+      },
+      "stream_analytics": {
+        "input_name": "iot-hub",
+        "output_db_name": "sqldb",
+        "output_storage_name": "blobstorage",
+        "output_event_hub_name": "event-hub"
+      },
+      "subnet": {
+        "functions": {
+          "name": "functions",
+          "address": "10.0.0.0/20"
+        }
+      },
+      "alert": {
+        "resource_health": {
+          "name": "[concat(parameters('alert_prefix'), '-Resource Health Alert')]"
+        },
+        "iot_hub": {
+          "service_quota": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Service Quota Alert')]"
+          },
+          "service_quota_half": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Service Quota Half Alert')]"
+          },
+          "telemetry_dropped": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Telemetry Dropped Alert')]"
+          },
+          "telemetry_incompatible": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Telemetry Incompatible Alert')]"
+          },
+          "telemetry_orphaned": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Telemetry Orphaned Alert')]"
+          },
+          "throttling_error": {
+            "name": "[concat(parameters('alert_prefix'), '-IoT Hub Throttling Error Alert')]"
+          }
+        },
+        "stream_analytics": {
+          "stop": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Stop Alert')]"
+          },
+          "su_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics SU Percentage Alert')]"
+          },
+          "watermark_delay": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Watermark Delay Alert')]"
+          },
+          "data_conversion_error": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Data Conversion Error Alert')]"
+          },
+          "failed_function_request": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Failed Functions Request Alert')]"
+          },
+          "input_deserialization": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Input Deserialization Alert')]"
+          },
+          "runtime_error": {
+            "name": "[concat(parameters('alert_prefix'), '-Stream Analytics Runtime Error Alert')]"
+          }
+        },
+        "event_hubs": {
+          "throttled_requests": {
+            "name": "[concat(parameters('alert_prefix'), '-Event Hubs Throttled Requests Alert')]"
+          },
+          "server_errors": {
+            "name": "[concat(parameters('alert_prefix'), '-Event Hubs Server Errors Alert')]"
+          },
+          "user_errors": {
+            "name": "[concat(parameters('alert_prefix'), '-Event Hubs User Errors Alert')]"
+          },
+          "quota_exceeded_errors": {
+            "name": "[concat(parameters('alert_prefix'), '-Event Hubs Quota Exceeded Errors Alert')]"
+          }
+        },
+        "sql_db": {
+          "cpu_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB CPU Percentage Alert')]"
+          },
+          "data_io_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Data IO Percentage Alert')]"
+          },
+          "deadlock": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Deadlock Alert')]"
+          },
+          "failed_connection": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Failed Connection Alert')]"
+          },
+          "memory_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Memory Percentage Alert')]"
+          },
+          "session_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Session Percentage Alert')]"
+          },
+          "storage_percentage": {
+            "name": "[concat(parameters('alert_prefix'), '-SQL DB Storage Percentage Alert')]"
+          }
+        },
+        "functions": {
+          "stop": {
+            "name": "[concat(parameters('alert_prefix'), '-Functions Stop Alert')]"
+          },
+          "memory_usage": {
+            "name": "[concat(parameters('alert_prefix'), '-Functions Memory Usage Alert')]"
+          },
+          "file_system_usage": {
+            "name": "[concat(parameters('alert_prefix'), '-Functions File System Usage Alert')]"
+          },
+          "exception": {
+            "name": "[concat(parameters('alert_prefix'), '-Functions Exception Alert')]"
+          },
+          "error_log": {
+            "name": "[concat(parameters('alert_prefix'), '-Functions Error Log Alert')]"
+          }
+        }
+      }
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Devices/IotHubs",
+        "apiVersion": "2020-08-01",
+        "name": "[parameters('iot_hub_name')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "S1",
+          "tier": "Standard",
+          "capacity": 1
+        },
+        "identity": {
+          "type": "None"
+        },
+        "properties": {
+          "ipFilterRules": [],
+          "eventHubEndpoints": {
+            "events": {
+              "retentionTimeInDays": 1,
+              "partitionCount": 2
+            }
+          },
+          "routing": {
+            "endpoints": {
+              "serviceBusQueues": [],
+              "serviceBusTopics": [],
+              "eventHubs": [],
+              "storageContainers": []
+            },
+            "routes": [],
+            "fallbackRoute": {
+              "name": "$fallback",
+              "source": "DeviceMessages",
+              "condition": "true",
+              "endpointNames": [
+                "events"
+              ],
+              "isEnabled": true
+            }
+          },
+          "storageEndpoints": {},
+          "messagingEndpoints": {},
+          "enableFileUploadNotifications": false,
+          "cloudToDevice": {},
+          "features": "None"
+        }
+      },
+      {
+        "type": "Microsoft.Devices/IotHubs/EventhubEndpoints/ConsumerGroups",
+        "apiVersion": "2020-03-01",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+        ],
+        "name": "[variables('consumer_group').stream_analytics.name_for_def]"
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces",
+        "apiVersion": "2018-01-01-preview",
+        "name": "[parameters('event-hub-namespace-name')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "Standard",
+          "tier": "Standard",
+          "capacity": 1
+        },
+        "properties": {
+          "zoneRedundant": false,
+          "isAutoInflateEnabled": false,
+          "maximumThroughputUnits": 0
+        }
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces/eventhubs",
+        "apiVersion": "2017-04-01",
+        "name": "[concat(parameters('event-hub-namespace-name'), '/', parameters('event-hub-name'))]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+        ],
+        "properties": {
+          "messageRetentionInDays": 1,
+          "partitionCount": 1,
+          "status": "Active"
+        }
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces/networkRuleSets",
+        "apiVersion": "2018-01-01-preview",
+        "name": "[concat(parameters('event-hub-namespace-name'), '/default')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+        ],
+        "properties": {
+          "defaultAction": "Deny",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "trustedServiceAccessEnabled": true
+        }
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces/eventhubs/consumergroups",
+        "apiVersion": "2017-04-01",
+        "name": "[concat(parameters('event-hub-namespace-name'), '/', parameters('event-hub-name'), '/$Default')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces/eventhubs', parameters('event-hub-namespace-name'), parameters('event-hub-name'))]",
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+        ],
+        "properties": {}
+      },
+      {
+        "type": "Microsoft.StreamAnalytics/streamingjobs",
+        "apiVersion": "2017-04-01-preview",
+        "name": "[parameters('streaming_jobs_name')]",
+        "location": "[parameters('location')]",
+        "identity": {
+          "type": "SystemAssigned"
+        },
+        "properties": {
+          "sku": {
+            "name": "Standard"
+          },
+          "eventsOutOfOrderPolicy": "Adjust",
+          "outputErrorPolicy": "Drop",
+          "eventsOutOfOrderMaxDelayInSeconds": 0,
+          "eventsLateArrivalMaxDelayInSeconds": 5,
+          "dataLocale": "ja-JP",
+          "compatibilityLevel": "1.2",
+          "contentStoragePolicy": "SystemAccount",
+          "jobType": "Cloud"
+        },
+        "resources": [
+          {
+            "type": "inputs",
+            "apiVersion": "2017-04-01-preview",
+            "name": "[variables('stream_analytics').input_name]",
+            "dependsOn": [
+              "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+              "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+            ],
+            "properties": {
+              "type": "Stream",
+              "datasource": {
+                "type": "Microsoft.Devices/IotHubs",
+                "properties": {
+                  "iotHubNamespace": "[parameters('iot_hub_name')]",
+                  "sharedAccessPolicyName": "iothubowner",
+                  "sharedAccessPolicyKey": "[listKeys(resourceId('Microsoft.Devices/IotHubs/Iothubkeys', parameters('iot_hub_name'), 'iothubowner'), '2018-04-01').primaryKey]",
+                  "endpoint": "messages/events",
+                  "consumerGroupName": "[variables('consumer_group').stream_analytics.name]"
+                }
+              },
+              "compression": {
+                "type": "None"
+              },
+              "serialization": {
+                "type": "Json",
+                "properties": {
+                  "encoding": "UTF8"
+                }
+              }
+            }
+          },
+          {
+            "type": "outputs",
+            "apiVersion": "2017-04-01-preview",
+            "name": "[variables('stream_analytics').output_db_name]",
+            "dependsOn": [
+              "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+              "[resourceId('Microsoft.Sql/servers', concat(parameters('sql_server_name')))]",
+              "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+            ],
+            "properties": {
+              "datasource": {
+                "type": "Microsoft.Sql/Server/Database",
+                "properties": {
+                  "maxWriterCount": 1,
+                  "maxBatchCount": 10000,
+                  "table": "[parameters('TableName')]",
+                  "server": "[parameters('sql_server_name')]",
+                  "database": "[parameters('sqlDBName')]",
+                  "authenticationMode": "Msi"
+                }
+              }
+            }
+          },
+          {
+            "type": "outputs",
+            "apiVersion": "2017-04-01-preview",
+            "name": "[variables('stream_analytics').output_storage_name]",
+            "dependsOn": [
+              "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+            ],
+            "properties": {
+              "datasource": {
+                "type": "Microsoft.Storage/Blob",
+                "properties": {
+                  "storageAccounts": [
+                    {
+                      "accountName": "[parameters('storage_accounts_name')]"
+                    }
+                  ],
+                  "container": "[parameters('container_name')]",
+                  "pathPattern": "",
+                  "dateFormat": "yyyy/MM/dd",
+                  "timeFormat": "HH",
+                  "authenticationMode": "Msi"
+                }
+              },
+              "serialization": {
+                "type": "JSON",
+                "properties": {
+                  "encoding": "UTF8"
+                }
+              }
+            }
+          },
+          {
+            "type": "outputs",
+            "apiVersion": "2017-04-01-preview",
+            "name": "[variables('stream_analytics').output_event_hub_name]",
+            "dependsOn": [
+              "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+            ],
+            "properties": {
+              "datasource": {
+                "type": "Microsoft.EventHub/EventHub",
+                "properties": {
+                  "propertyColumns": [],
+                  "eventHubName": "event-hub",
+                  "serviceBusNamespace": "[parameters('event-hub-namespace-name')]",
+                  "authenticationMode": "Msi"
+                }
+              },
+              "serialization": {
+                "type": "Json",
+                "properties": {
+                  "encoding": "UTF8",
+                  "format": "LineSeparated"
+                }
+              }
+            }
+          },
+          {
+            "name": "query",
+            "type": "transformations",
+            "apiVersion": "2017-04-01-preview",
+            "dependsOn": [
+              "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+            ],
+            "properties": {
+              "streamingUnits": 1,
+              "query": "[concat('SELECT\n TRY_CAST(input.temperature AS nvarchar(max)) AS temperature,\n TRY_CAST(input.humidity AS nvarchar(max)) AS humidity,\n TRY_CAST(input.EventProcessedUtcTime AS DATETIME) AS EventProcessedUtcTime,\n TRY_CAST(input.PartitionId AS bigint) AS PartitionId,\n TRY_CAST(input.EventEnqueuedUtcTime AS DATETIME) AS EventEnqueuedUtcTime,\n TRY_CAST(input.IoTHub.MessageId AS nvarchar(max)) AS IoTHub_MessageId,\n TRY_CAST(input.IoTHub.CorrelationId AS nvarchar(max)) AS IoTHub_CorrelationId,\n TRY_CAST(input.IoTHub.ConnectionDeviceId AS nvarchar(max)) AS IoTHub_ConnectionDeviceId,\n TRY_CAST(input.IoTHub.ConnectionDeviceGenerationId AS nvarchar(max)) AS IoTHub_ConnectionDeviceGenerationId,\n TRY_CAST(input.IoTHub.EnqueuedTime AS DATETIME) AS IoTHub_EnqueuedTime\nINTO\n [', variables('stream_analytics').output_db_name, ']\nFROM\n [', variables('stream_analytics').input_name, '] as input\n\nSELECT *\nINTO\n [', variables('stream_analytics').output_storage_name, ']\nFROM\n [', variables('stream_analytics').input_name, ']\n\n', 'SELECT *\nINTO\n [', variables('stream_analytics').output_event_hub_name, ']\nFROM\n [', variables('stream_analytics').input_name, ']\n')]"
+            }
+          }
+        ]
+      },
+      {
+        "type": "Microsoft.Sql/servers",
+        "apiVersion": "2020-02-02-preview",
+        "name": "[parameters('sql_server_name')]",
+        "location": "[parameters('location')]",
+        "identity": {
+          "type": "SystemAssigned"
+        },
+        "properties": {
+          "administratorLogin": "[parameters('administratorLogin')]",
+          "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+          "minimalTlsVersion": "1.2"
+        },
+        "resources": [
+          {
+            "type": "databases",
+            "apiVersion": "2020-08-01-preview",
+            "name": "[parameters('sqlDBName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+              "name": "Standard",
+              "tier": "Standard",
+              "capacity": 20
+            },
+            "kind": "v12.0,user",
+            "dependsOn": [
+              "[resourceId('Microsoft.Sql/servers', concat(parameters('sql_server_name')))]"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Microsoft.Sql/servers/firewallRules",
+        "apiVersion": "2020-08-01-preview",
+        "name": "[concat(parameters('sql_server_name'), '/AllowAllWindowsAzureIps')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]"
+        ],
+        "properties": {
+          "startIpAddress": "0.0.0.0",
+          "endIpAddress": "0.0.0.0"
+        }
+      },
+      {
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2021-01-01",
+        "name": "[parameters('storage_accounts_name')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "Standard_RAGRS",
+          "tier": "Standard"
+        },
+        "kind": "StorageV2",
+        "properties": {
+          "minimumTlsVersion": "TLS1_2",
+          "allowBlobPublicAccess": false,
+          "allowSharedKeyAccess": false,
+          "networkAcls": {
+            "bypass": "AzureServices",
+            "virtualNetworkRules": [],
+            "ipRules": [],
+            "defaultAction": "Deny"
+          },
+          "supportsHttpsTrafficOnly": true,
+          "encryption": {
+            "services": {
+              "file": {
+                "keyType": "Account",
+                "enabled": true
+              },
+              "blob": {
+                "keyType": "Account",
+                "enabled": true
+              }
+            },
+            "keySource": "Microsoft.Storage"
+          },
+          "accessTier": "Hot"
+        },
+        "resources": [
+          {
+            "type": "blobServices/containers",
+            "apiVersion": "2021-01-01",
+            "name": "[concat('default/', parameters('container_name'))]",
+            "dependsOn": [
+              "[parameters('storage_accounts_name')]"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2021-01-01",
+        "name": "[parameters('storage_in_vnet')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNet_name'))]"
+        ],
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "Standard_LRS",
+          "tier": "Standard"
+        },
+        "kind": "Storage",
+        "properties": {
+          "minimumTlsVersion": "TLS1_2",
+          "allowBlobPublicAccess": false,
+          "allowSharedKeyAccess": true,
+          "networkAcls": {
+            "bypass": "AzureServices",
+            "virtualNetworkRules": [
+              {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', parameters('VNet_name'), '/subnets/', variables('subnet').functions.name)]",
+                "action": "Allow",
+                "state": "Succeeded"
+              }
+            ],
+            "ipRules": [],
+            "defaultAction": "Deny"
+          },
+          "supportsHttpsTrafficOnly": true,
+          "encryption": {
+            "services": {
+              "file": {
+                "keyType": "Account",
+                "enabled": true
+              },
+              "blob": {
+                "keyType": "Account",
+                "enabled": true
+              }
+            },
+            "keySource": "Microsoft.Storage"
+          }
+        },
+        "resources": [
+          {
+            "type": "blobServices/containers",
+            "apiVersion": "2021-01-01",
+            "name": "[concat('default/', parameters('container_name'))]",
+            "dependsOn": [
+              "[parameters('storage_in_vnet')]"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Microsoft.Web/serverfarms",
+        "apiVersion": "2018-02-01",
+        "name": "[parameters('serverfarms_plan_name')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "S1",
+          "tier": "Standard",
+          "size": "S1",
+          "family": "S",
+          "capacity": 1
+        },
+        "kind": "linux",
+        "properties": {
+          "reserved": true
+        }
+      },
+      {
+        "type": "Microsoft.Network/publicIPAddresses",
+        "apiVersion": "2020-11-01",
+        "name": "[parameters('IP_name')]",
+        "location": "[parameters('location')]",
+        "sku": {
+          "name": "Standard",
+          "tier": "Regional"
+        },
+        "properties": {
+          "publicIPAddressVersion": "IPv4",
+          "publicIPAllocationMethod": "Static",
+          "idleTimeoutInMinutes": 4,
+          "ipTags": []
+        }
+      },
+      {
+        "type": "Microsoft.Network/natGateways",
+        "apiVersion": "2020-11-01",
+        "name": "[parameters('NAT_name')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/publicIPAddresses', parameters('IP_name'))]"
+        ],
+        "sku": {
+          "name": "Standard",
+          "tier": "Regional"
+        },
+        "properties": {
+          "idleTimeoutInMinutes": 4,
+          "publicIpAddresses": [
+            {
+              "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('IP_name'))]"
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.Network/virtualNetworks",
+        "apiVersion": "2020-11-01",
+        "name": "[parameters('VNet_name')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/natGateways', parameters('NAT_name'))]"
+        ],
+        "location": "[parameters('location')]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "10.0.0.0/16"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('subnet').functions.name]",
+              "properties": {
+                "addressPrefix": "[variables('subnet').functions.address]",
+                "natGateway": {
+                  "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/natGateways/', parameters('NAT_name'))]"
+                },
+                "serviceEndpoints": [
+                  {
+                    "service": "Microsoft.Storage",
+                    "locations": [
+                      "japaneast",
+                      "japanwest"
+                    ]
+                  },
+                  {
+                    "service": "Microsoft.KeyVault",
+                    "locations": [
+                      "*"
+                    ]
+                  }
+                ],
+                "delegations": [
+                  {
+                    "name": "delegation",
+                    "properties": {
+                      "serviceName": "Microsoft.Web/serverfarms"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "virtualNetworkPeerings": [],
+          "enableDdosProtection": false
+        }
+      },
+      {
+        "type": "Microsoft.Web/sites",
+        "apiVersion": "2018-11-01",
+        "name": "[parameters('functions_name')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_plan_name'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_in_vnet'))]",
+          "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNet_name'))]",
+          "[resourceId('microsoft.insights/components', parameters('application_insights_name'))]"
+        ],
+        "location": "[parameters('location')]",
+        "kind": "functionapp,linux",
+        "identity": {
+          "type": "SystemAssigned"
+        },
+        "properties": {
+          "enabled": true,
+          "hostNameSslStates": [
+            {
+              "name": "[concat(parameters('functions_name'), '.azurewebsites.net')]",
+              "sslState": "Disabled",
+              "hostType": "Standard"
+            },
+            {
+              "name": "[concat(parameters('functions_name'), '.scm.azurewebsites.net')]",
+              "sslState": "Disabled",
+              "hostType": "Repository"
+            }
+          ],
+          "serverFarmId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Web/serverfarms/', parameters('serverfarms_plan_name'))]",
+          "alwaysOn": true,
+          "siteConfig": {
+            "appSettings": [
+              {
+                "name": "AzureWebJobsStorage",
+                "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storage_in_vnet'), ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storage_in_vnet')), '2019-06-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)]"
+              },
+              {
+                "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                "value": "[reference(resourceId('microsoft.insights/components', parameters('application_insights_name')), '2020-02-02-preview').InstrumentationKey]"
+              },
+              {
+                "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                "value": "[reference(resourceId('microsoft.insights/components', parameters('application_insights_name')), '2020-02-02-preview').ConnectionString]"
+              },
+              {
+                "name": "FUNCTIONS_EXTENSION_VERSION",
+                "value": "~3"
+              },
+              {
+                "name": "FUNCTIONS_WORKER_RUNTIME",
+                "value": "python"
+              },
+              {
+                "name": "WEBSITE_VNET_ROUTE_ALL",
+                "value": "1"
+              },
+              {
+                "name": "AzureEventHubConnectionString",
+                "value": "[listKeys(resourceId('Microsoft.EventHub/namespaces/authorizationRules', parameters('event-hub-namespace-name'), 'RootManageSharedAccessKey'), '2017-04-01').primaryConnectionString]"
+              },
+              {
+                "name": "KEY_VAULT_NAME",
+                "value": "[parameters('key_vault_in_vnet_name')]"
+              },
+              {
+                "name": "STORAGE_NAME",
+                "value": "[parameters('storage_in_vnet')]"
+              },
+              {
+                "name": "CONTAINER_NAME",
+                "value": "[parameters('container_name')]"
+              }
+            ]
+          }
+        },
+        "resources": [
+          {
+            "type": "config",
+            "apiVersion": "2018-11-01",
+            "name": "virtualNetwork",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+              "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+            ],
+            "properties": {
+              "subnetResourceId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('VNet_name'), variables('subnet').functions.name)]",
+              "swiftSupported": true
+            }
+          }
+        ]
+      },
+      {
+        "type": "microsoft.insights/components",
+        "apiVersion": "2020-02-02-preview",
+        "name": "[parameters('application_insights_name')]",
+        "location": "[parameters('location')]",
+        "properties": {
+          "ApplicationId": "[parameters('application_insights_name')]",
+          "Request_Source": "IbizaWebAppExtensionCreate"
+        }
+      },
+      {
+        "type": "Microsoft.KeyVault/vaults",
+        "apiVersion": "2020-04-01-preview",
+        "name": "[parameters('key_vault_in_vnet_name')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', parameters('VNet_name'))]"
+        ],
+        "location": "[parameters('location')]",
+        "properties": {
+          "sku": {
+            "family": "A",
+            "name": "Standard"
+          },
+          "tenantId": "[subscription().tenantId]",
+          "networkAcls": {
+            "bypass": "AzureServices",
+            "defaultAction": "Deny",
+            "ipRules": [],
+            "virtualNetworkRules": [
+              {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', parameters('VNet_name'), '/subnets/', variables('subnet').functions.name)]",
+                "action": "Allow",
+                "state": "Succeeded"
+              }
+            ]
+          },
+          "accessPolicies": [],
+          "enableRbacAuthorization": true
+        }
+      },
+      // ######################################################################################
+      // ### Role assignments
+      // ######################################################################################
+      {
+        "type": "Microsoft.KeyVault/vaults/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('key_vault_in_vnet_name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_functions_to_key_vault'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.KeyVault/vaults', parameters('key_vault_in_vnet_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '4633458b-17de-408a-b874-0445c86b69e6')]",
+          "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functions_name')), '2018-11-01', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      {
+        "type": "Microsoft.Storage/storageAccounts/blobServices/containers/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('storage_accounts_name'), '/default/',  parameters('container_name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_SAS_to_blob_storage_container'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_accounts_name'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storage_accounts_name'), 'default', parameters('container_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+          "principalId": "[reference(resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name')), '2017-04-01-preview', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      {
+        "type": "Microsoft.Storage/storageAccounts/blobServices/containers/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('storage_in_vnet'), '/default/',  parameters('container_name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_functions_to_blob_storage_container'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_in_vnet'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storage_in_vnet'), 'default', parameters('container_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+          "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functions_name')), '2018-11-01', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces/eventhubs/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('event-hub-namespace-name'), '/', parameters('event-hub-name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_SAS_to_event-hub'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '2b629674-e913-4c01-ae53-ef4638d8f975')]",
+          "principalId": "[reference(resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name')), '2017-04-01-preview', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      {
+        "type": "Microsoft.EventHub/namespaces/eventhubs/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('event-hub-namespace-name'), '/', parameters('event-hub-name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_event-hub_to_functions'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'a638d3c7-ab3a-418d-83e6-5f17a39d4fde')]",
+          "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('functions_name')), '2018-11-01', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      {
+        "type": "Microsoft.Storage/storageAccounts/providers/roleAssignments",
+        "apiVersion": "2018-09-01-preview",
+        "name": "[concat(parameters('storage_accounts_name'), '/Microsoft.Authorization/', parameters('role_relation_id_for_sql_server_to_storage_account'))]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_accounts_name'))]"
+        ],
+        "properties": {
+          "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+          "principalId": "[reference(resourceId('Microsoft.Sql/servers', parameters('sql_server_name')), '2020-02-02-preview', 'Full').identity.principalId]",
+          "principalType": "ServicePrincipal"
+        }
+      },
+      // ######################################################################################
+      // ### Action groups for Alert
+      // ######################################################################################
+      {
+        "type": "Microsoft.insights/actionGroups",
+        "apiVersion": "2019-06-01",
+        "name": "[parameters('send_email_action_group_name')]",
+        "location": "Global",
+        "properties": {
+          "groupShortName": "[take(parameters('send_email_action_group_name_short'), 12)]",
+          "enabled": true,
+          "emailReceivers": [
+            {
+              "name": "Email Notification 01",
+              "emailAddress": "[parameters('alert_email')]",
+              "useCommonAlertSchema": true
+            }
+          ],
+          "smsReceivers": [],
+          "webhookReceivers": [],
+          "itsmReceivers": [],
+          "azureAppPushReceivers": [],
+          "automationRunbookReceivers": [],
+          "voiceReceivers": [],
+          "logicAppReceivers": [],
+          "azureFunctionReceivers": [],
+          "armRoleReceivers": []
+        }
+      },
+      // ######################################################################################
+      // ### Resource health alert
+      // ######################################################################################
+      {
+        "type": "Microsoft.Insights/activityLogAlerts",
+        "apiVersion": "2020-10-01",
+        "name": "[variables('alert').resource_health.name]",
+        "location": "Global",
+        "dependsOn": [
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]",
+          "[resourceId('Microsoft.Sql/servers/databases',parameters('sql_server_name') ,parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_accounts_name'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_in_vnet'))]",
+          "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]",
+          "[resourceId('Microsoft.KeyVault/vaults', parameters('key_vault_in_vnet_name'))]"
+        ],
+        "properties": {
+          "scopes": [
+            "[concat('/subscriptions/', subscription().subscriptionId)]"
+          ],
+          "condition": {
+            "allOf": [
+              {
+                "field": "category",
+                "equals": "ResourceHealth"
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.Devices/IotHubs"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.StreamAnalytics/streamingjobs"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.EventHub/namespaces"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.Sql/servers/databases"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.Storage/storageAccounts"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.Web/sites"
+                  },
+                  {
+                    "field": "resourceType",
+                    "equals": "Microsoft.KeyVault/vaults"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "resourceGroup",
+                    "equals": "[resourceGroup().name]"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.Sql/servers/databases',parameters('sql_server_name') ,parameters('sqlDBName'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_accounts_name'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_in_vnet'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+                  },
+                  {
+                    "field": "resourceId",
+                    "equals": "[resourceId('Microsoft.KeyVault/vaults', parameters('key_vault_in_vnet_name'))]"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "properties.currentHealthStatus",
+                    "equals": "Degraded"
+                  },
+                  {
+                    "field": "properties.currentHealthStatus",
+                    "equals": "Unavailable"
+                  },
+                  {
+                    "field": "properties.currentHealthStatus",
+                    "equals": "Unknown"
+                  }
+                ]
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "status",
+                    "equals": "Active"
+                  },
+                  {
+                    "field": "status",
+                    "equals": "Resolved"
+                  }
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "actionGroups": [
+              {
+                "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+                "webhookProperties": {}
+              }
+            ]
+          },
+          "enabled": true
+        }
+      },
+      // ######################################################################################
+      // ### Metric alerts for IoT Hub
+      // ######################################################################################
+      {
+        "type": "microsoft.insights/metricalerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.service_quota.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 400000,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.devices/iothubs",
+                "metricName": "dailyMessageQuotaUsed",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Maximum",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricalerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.service_quota_half.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 200000,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.devices/iothubs",
+                "metricName": "dailyMessageQuotaUsed",
+                "operator": "GreaterThan",
+                "timeAggregation": "Maximum",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.telemetry_dropped.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Devices/IotHubs",
+                "metricName": "d2c.telemetry.egress.dropped",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.telemetry_incompatible.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric2",
+                "metricNamespace": "Microsoft.Devices/IotHubs",
+                "metricName": "d2c.telemetry.egress.invalid",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.telemetry_orphaned.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Devices/IotHubs",
+                "metricName": "d2c.telemetry.egress.orphaned",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').iot_hub.throttling_error.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Devices/IotHubs', parameters('iot_hub_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Devices/IotHubs",
+                "metricName": "d2c.telemetry.ingress.sendThrottle",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Devices/IotHubs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      // ######################################################################################
+      // ### Metric alerts for Stream Analytics
+      // ######################################################################################
+      {
+        "type": "microsoft.insights/activityLogAlerts",
+        "apiVersion": "2020-10-01",
+        "name": "[variables('alert').stream_analytics.stop.name]",
+        "location": "Global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "condition": {
+            "allOf": [
+              {
+                "field": "category",
+                "equals": "Administrative"
+              },
+              {
+                "field": "operationName",
+                "equals": "Microsoft.StreamAnalytics/streamingjobs/Stop/action"
+              },
+              {
+                "field": "status",
+                "containsAny": [
+                  "succeeded"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "actionGroups": [
+              {
+                "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+                "webhookProperties": {}
+              }
+            ]
+          },
+          "enabled": true
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.su_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "ResourceUtilization",
+                "operator": "GreaterThan",
+                "timeAggregation": "Maximum",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.watermark_delay.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 60,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "OutputWatermarkDelaySeconds",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricalerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.data_conversion_error.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "ConversionErrors",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.failed_function_request.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "AMLCalloutFailedRequests",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.input_deserialization.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "DeserializationError",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').stream_analytics.runtime_error.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.StreamAnalytics/streamingjobs', parameters('streaming_jobs_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.StreamAnalytics/streamingjobs",
+                "metricName": "Errors",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.StreamAnalytics/streamingjobs",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      // ######################################################################################
+      // ### Metric alerts for Event Hubs
+      // ######################################################################################
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').event_hubs.quota_exceeded_errors.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.eventhub/namespaces",
+                "metricName": "QuotaExceededErrors",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.EventHub/namespaces",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').event_hubs.server_errors.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.eventhub/namespaces",
+                "metricName": "ServerErrors",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.EventHub/namespaces",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').event_hubs.throttled_requests.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.eventhub/namespaces",
+                "metricName": "ThrottledRequests",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.EventHub/namespaces",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').event_hubs.user_errors.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.EventHub/namespaces', parameters('event-hub-namespace-name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.eventhub/namespaces",
+                "metricName": "UserErrors",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.EventHub/namespaces",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      // ######################################################################################
+      // ### Metric alerts for SQL DB
+      // ######################################################################################
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.cpu_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "cpu_percent",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.data_io_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "physical_data_read_percent",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.deadlock.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "deadlock",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.failed_connection.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 10,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "connection_failed",
+                "operator": "GreaterThan",
+                "timeAggregation": "Total",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.memory_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "sqlserver_process_memory_percent",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.session_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "Microsoft.Sql/servers/databases",
+                "metricName": "sessions_percent",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').sql_db.storage_percentage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sql_server_name'), parameters('sqlDBName'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 80,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.sql/servers/databases",
+                "metricName": "storage_percent",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.MultipleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Sql/servers/databases",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      // ######################################################################################
+      // ### Metric alerts for Functions
+      // ######################################################################################
+      {
+        "type": "microsoft.insights/activityLogAlerts",
+        "apiVersion": "2020-10-01",
+        "name": "[variables('alert').functions.stop.name]",
+        "location": "Global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "scopes": [
+            "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+          ],
+          "condition": {
+            "allOf": [
+              {
+                "field": "category",
+                "equals": "Administrative"
+              },
+              {
+                "field": "operationName",
+                "equals": "Microsoft.Web/sites/stop/Action"
+              },
+              {
+                "field": "status",
+                "containsAny": [
+                  "succeeded"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "actionGroups": [
+              {
+                "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+                "webhookProperties": {}
+              }
+            ]
+          },
+          "enabled": true
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').functions.file_system_usage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+          ],
+          "evaluationFrequency": "PT5M",
+          "windowSize": "PT6H",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 40000000000,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.web/sites",
+                "metricName": "FileSystemUsage",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Web/sites",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').functions.memory_usage.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('Microsoft.Web/sites', parameters('functions_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1400000000,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.web/sites",
+                "metricName": "MemoryWorkingSet",
+                "operator": "GreaterThan",
+                "timeAggregation": "Average",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "Microsoft.Web/sites",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "name": "[variables('alert').functions.exception.name]",
+        "location": "global",
+        "dependsOn": [
+          "[resourceId('microsoft.insights/components', parameters('application_insights_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "scopes": [
+            "[resourceId('microsoft.insights/components', parameters('application_insights_name'))]"
+          ],
+          "evaluationFrequency": "PT1M",
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "threshold": 1,
+                "name": "Metric1",
+                "metricNamespace": "microsoft.insights/components",
+                "metricName": "exceptions/count",
+                "operator": "GreaterThanOrEqual",
+                "timeAggregation": "Count",
+                "criterionType": "StaticThresholdCriterion"
+              }
+            ],
+            "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria"
+          },
+          "autoMitigate": true,
+          "targetResourceType": "microsoft.insights/components",
+          "targetResourceRegion": "[parameters('location')]",
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]",
+              "webHookProperties": {}
+            }
+          ]
+        }
+      },
+      {
+        "type": "microsoft.insights/scheduledqueryrules",
+        "apiVersion": "2020-05-01-preview",
+        "name": "[variables('alert').functions.error_log.name]",
+        "location": "japaneast",
+        "dependsOn": [
+          "[resourceId('microsoft.insights/components', parameters('application_insights_name'))]",
+          "[resourceId('Microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+        ],
+        "properties": {
+          "severity": 1,
+          "enabled": true,
+          "evaluationFrequency": "PT5M",
+          "scopes": [
+            "[resourceId('microsoft.insights/components', parameters('application_insights_name'))]"
+          ],
+          "windowSize": "PT5M",
+          "criteria": {
+            "allOf": [
+              {
+                "query": "traces\n| where severityLevel >= 3\n",
+                "timeAggregation": "Count",
+                "operator": "GreaterThanOrEqual",
+                "threshold": 1,
+                "failingPeriods": {
+                  "numberOfEvaluationPeriods": 1,
+                  "minFailingPeriodsToAlert": 1
+                }
+              }
+            ]
+          },
+          "actions": [
+            {
+              "actionGroupId": "[resourceId('microsoft.insights/actionGroups', parameters('send_email_action_group_name'))]"
+            }
+          ]
+        }
+      },
+      // ######################################################################################
+      // ### Security Settings for SQL DB
+      // ######################################################################################
+      {
+        "type": "Microsoft.Sql/servers/securityAlertPolicies",
+        "apiVersion": "2020-08-01-preview",
+        "name": "[concat(parameters('sql_server_name'), '/Default')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]"
+        ],
+        "properties": {
+          "state": "Enabled"
+        }
+      },
+      {
+        "type": "Microsoft.Sql/servers/vulnerabilityAssessments",
+        "apiVersion": "2020-08-01-preview",
+        "name": "[concat(parameters('sql_server_name'), '/Default')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]",
+          "[resourceId('Microsoft.Storage/StorageAccounts', parameters('storage_accounts_name'))]",
+          "[resourceId('Microsoft.Sql/servers/securityAlertPolicies', parameters('sql_server_name'), 'Default')]"
+        ],
+        "properties": {
+          "storageContainerPath": "[concat('https://', parameters('storage_accounts_name'), '.blob.core.windows.net/vulnerability-assessment/')]",
+          "recurringScans": {
+            "isEnabled": true,
+            "emailSubscriptionAdmins": false,
+            "emails": [
+              "[parameters('alert_email')]"
+            ]
+          }
+        }
+      },
+      {
+        "type": "Microsoft.Sql/servers/auditingSettings",
+        "apiVersion": "2020-08-01-preview",
+        "name": "[concat(parameters('sql_server_name'), '/Default')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]",
+          "[resourceId('Microsoft.Storage/StorageAccounts', parameters('storage_accounts_name'))]"
+        ],
+        "properties": {
+          "retentionDays": 0,
+          "auditActionsAndGroups": [
+            "SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP",
+            "FAILED_DATABASE_AUTHENTICATION_GROUP",
+            "BATCH_COMPLETED_GROUP"
+          ],
+          "isAzureMonitorTargetEnabled": false,
+          "state": "Enabled",
+          "storageEndpoint": "[concat('https://', parameters('storage_accounts_name'), '.blob.core.windows.net/')]",
+          "storageAccountSubscriptionId": "[subscription().subscriptionId]"
+        }
+      },
+      {
+        "type": "Microsoft.Sql/servers/devOpsAuditingSettings",
+        "apiVersion": "2020-08-01-preview",
+        "name": "[concat(parameters('sql_server_name'), '/Default')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Sql/servers', parameters('sql_server_name'))]",
+          "[resourceId('Microsoft.Storage/StorageAccounts', parameters('storage_accounts_name'))]"
+        ],
+        "properties": {
+          "isAzureMonitorTargetEnabled": false,
+          "state": "Enabled",
+          "storageEndpoint": "[concat('https://', parameters('storage_accounts_name'), '.blob.core.windows.net/')]",
+          "storageAccountSubscriptionId": "[subscription().subscriptionId]"
+        }
+      }
+    ]
+  }
+  
